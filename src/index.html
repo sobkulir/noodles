@@ -35,7 +35,7 @@
   <script type="module" src="modules/Rect.mjs"></script> -->
 
     <script>
-      const MRIEZKA_SIZE = 30;
+      const MRIEZKA_SIZE = 45;
       const WIDTH_PX = 600 - (600 % MRIEZKA_SIZE);
       const HEIGHT_PX = 600 - (600 % MRIEZKA_SIZE);
       const WIDTH = WIDTH_PX / MRIEZKA_SIZE;
@@ -59,9 +59,12 @@
         }
       }
 
- 		  let generateOnePath = (trialId, mriezka, sketch) => {
+      let generateOnePath = (trialId, mriezka, sketch) => {
         let curPath = [];
-        let cur = mriezka[Math.floor(sketch.random(HEIGHT))][Math.floor(sketch.random(WIDTH))];
+        let cur =
+          mriezka[Math.floor(sketch.random(HEIGHT))][
+            Math.floor(sketch.random(WIDTH))
+          ];
         cur.lastTrialId = trialId;
         curPath.push(cur);
 
@@ -96,13 +99,12 @@
       };
 
       let generatePath = (mriezka, sketch) => {
-        const trials = Array(7000).fill(0).map((x, i) =>
-          generateOnePath(i + 5, mriezka, sketch)
-        );
-        return trials.reduce(
-          (accArr, curArr) => {return (accArr.length > curArr.length) ? accArr : curArr},
-          []
-        );
+        const trials = Array(7000)
+          .fill(0)
+          .map((x, i) => generateOnePath(i + 5, mriezka, sketch));
+        return trials.reduce((accArr, curArr) => {
+          return accArr.length > curArr.length ? accArr : curArr;
+        }, []);
       };
 
       let generatePathLegacy = (mriezka, sketch) => {
@@ -148,7 +150,6 @@
           /* Seeding */
           p5sketch = sketch;
           sketch.createCanvas(WIDTH_PX, HEIGHT_PX);
-          sketch.background(255);
 
           mriezka = Array(HEIGHT)
             .fill(0)
@@ -160,27 +161,55 @@
           sketch.ellipseMode(sketch.CENTER);
 
           path = generatePath(mriezka, sketch);
-          
-          // path : Array<Square>
-          sketch.beginShape();
-          for (let i = 0; i < path.length - 1; i++) {
-            let cur = path[i];
-            let next = path[i + 1];
 
-            sketch.curveVertex(cur.col * MRIEZKA_SIZE + cur.offX, cur.row * MRIEZKA_SIZE + cur.offY)
+          sketch.draw = () => {
+            sketch.background(255);
+            sketch.noFill();
+            let t = sketch.map(sketch.mouseX, 0, sketch.width, -5, 5);
+            sketch.curveTightness(t);
+            // sketch.ellipse(255, 255, 300, 300);
+            // path : Array<Square>
+            sketch.beginShape();
 
-            /*sketch.line(
-              cur.col * MRIEZKA_SIZE + cur.offX,
-              cur.row * MRIEZKA_SIZE + cur.offY,
-              next.col * MRIEZKA_SIZE + next.offX,
-              next.row * MRIEZKA_SIZE + next.offY
-            );*/
-          }
-          sketch.endShape();
-        };
+            sketch.curveVertex(
+              path[0].col * MRIEZKA_SIZE + path[0].offX,
+              path[0].row * MRIEZKA_SIZE + path[0].offY
+            );
+            for (let i = 0; i < path.length; i++) {
+              let cur = path[i];
+              let next = path[i + 1];
 
-        sketch.draw = () => {
-          // sketch.ellipse(255, 255, 300, 300);
+              sketch.strokeWeight(1);
+              sketch.curveVertex(
+                cur.col * MRIEZKA_SIZE + cur.offX,
+                cur.row * MRIEZKA_SIZE + cur.offY
+              );
+              /*sketch.line(
+  cur.col * MRIEZKA_SIZE + cur.offX,
+  cur.row * MRIEZKA_SIZE + cur.offY,
+  next.col * MRIEZKA_SIZE + next.offX,
+  next.row * MRIEZKA_SIZE + next.offY
+);*/
+            }
+
+            sketch.curveVertex(
+              path[path.length - 1].col * MRIEZKA_SIZE +
+                path[path.length - 1].offX,
+              path[path.length - 1].row * MRIEZKA_SIZE +
+                path[path.length - 1].offY
+            );
+            sketch.endShape();
+
+            for (let i = 0; i < path.length; i++) {
+              let cur = path[i];
+              let next = path[i + 1];
+              sketch.strokeWeight(4);
+              sketch.point(
+                cur.col * MRIEZKA_SIZE + cur.offX,
+                cur.row * MRIEZKA_SIZE + cur.offY
+              );
+            }
+          };
         };
       }, "container");
     </script>
