@@ -17,7 +17,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* background: #f5f5f5; */
+            background: white;
         }
 
         /* canvas {
@@ -33,9 +33,10 @@
   <script type="module" src="modules/Rect.mjs"></script> -->
 
     <script>
-        const MRIEZKA_SIZE = 17;
+        const MRIEZKA_SIZE = 30;
         const SQUARE_BORDER = 7;
-
+        
+        const ALLOW_DIAGONAL = true;
         const NUM_PATHS = 40;
         const NUM_TRIALS = 7000;
         const USED_TRIAL_ID = -1;
@@ -58,26 +59,37 @@
             }
         }
 
-        let generateOnePath = (trialId, mriezka, width, height, sketch) => {
+        let generateOnePath = (trialId, mriezka,width, height, sketch) => {
             let curPath = [];
             let cur = null;
-            while (cur == null) {
+            let num_trials = 0;
+            const MAX_ATTEMPTS = 500
+            while (cur == null && num_trials++ < MAX_ATTEMPTS) {
                 let hmm = mriezka[Math.floor(sketch.random(height))][Math.floor(sketch.random(width))];
                 cur = (hmm.lastTrialId != USED_TRIAL_ID) ? hmm : null;
             }
+            if (cur == null) {
+                return [];
+            }
+
             cur.lastTrialId = trialId;
             curPath.push(cur);
 
             let dirs = [
-                [1,1],
-                [1,-1],
-                [-1,-1],
-                [-1,1],
                 [1, 0],
                 [-1, 0],
                 [0, 1],
                 [0, -1]
             ];
+
+            if (ALLOW_DIAGONAL) {
+                dirs.push(
+                    [-1,-1],
+                    [1,-1],
+                    [-1,1],
+                    [1,1],
+                )
+            }
 
             while (true) {
                 // choose rand out of dirs
@@ -102,19 +114,22 @@
             return curPath;
         };
 
-        let generatePath = (mriezka, width, height, sketch) => {
+        let generatePath = (mriezka, width, height,sketch) => {
             let paths = []
             let used_squares = 0;
             const total_squares = width * height;
             let i = 0;
             while (used_squares < total_squares && i < NUM_PATHS) {
                 let trials = Array(Math.floor(NUM_TRIALS/(i+1))).fill(0).map((x, j) =>
-                    generateOnePath(i*NUM_TRIALS + j + 5, mriezka, width, height, sketch)
+                    generateOnePath(i*NUM_TRIALS + j + 5, mriezka, width, height,sketch)
                 );
                 let p = trials.reduce(
                     (accArr, curArr) => { return (accArr.length > curArr.length) ? accArr : curArr },
                     []
                 );
+                if (p.length == 0) {
+                    break;
+                }
 
                 for (let j = 0; j < p.length; ++j) {
                     ++used_squares;
@@ -122,7 +137,7 @@
                 }
 
                 paths.push(p)
-                ++i;
+                ++i
             }
 
             return paths;
@@ -130,9 +145,14 @@
 
         let drawPath = (path, sketch) => {
             // path : Array<Square>
+
             sketch.beginShape();
-            sketch.strokeWeight(1.2 + sketch.random(0.5) - 0.25);
+            sketch.strokeWeight(0.5 + sketch.noise(path.length) - 0.5)
+            const color = sketch.color(0,0,0);
+            color.setAlpha(10)
+            sketch.stroke(color)
             sketch.noFill();
+            // sketch.curveTightness(sketch.random(3) - 1.5)
             sketch.curveVertex(
               path[0].col * MRIEZKA_SIZE + path[0].offX,
               path[0].row * MRIEZKA_SIZE + path[0].offY
@@ -173,7 +193,7 @@
             sketch.preload = () => { };
 
             sketch.setup = () => {
-              const BORDER_FRAC = 0.06
+                const BORDER_FRAC = 0.06
               const ARTWORK_BORDER = Math.max(Math.ceil(BORDER_FRAC * sketch.windowWidth), Math.ceil(BORDER_FRAC * sketch.windowHeight));
               const w = sketch.windowWidth - ARTWORK_BORDER;
               const h = sketch.windowHeight - ARTWORK_BORDER;
@@ -195,14 +215,26 @@
                     );
                 sketch.ellipseMode(sketch.CENTER);
 
-                paths = generatePath(mriezka, WIDTH, HEIGHT, sketch);
-                for (const p of paths) {
-                    drawPath(p, sketch)
-                }
+                paths = generatePath(mriezka,WIDTH, HEIGHT, sketch);
+
             };
 
             sketch.draw = () => {
-                // sketch.ellipse(255, 255, 300, 300);
+                // sketch.background(255)
+                // sketch.frameRate(3)
+                for (const row of mriezka) {
+                    for (const square of row) {
+                        const DIV = 0.01
+                        const TIMES = 10
+                        square.offX = MRIEZKA_SIZE / 2 + (sketch.noise(square.row * TIMES, square.col * TIMES, 0 + sketch.frameCount*DIV) - 0.5) * (MRIEZKA_SIZE - 2*SQUARE_BORDER)
+                        square.offY = MRIEZKA_SIZE / 2 + (sketch.noise(square.row * TIMES, square.col * TIMES, 100 + sketch.frameCount*DIV) - 0.5) * (MRIEZKA_SIZE - 2*SQUARE_BORDER)
+                    }
+                }
+                for (const p of paths) {
+                    for (let i = 0; i < 1; ++i) {
+                        drawPath(p, sketch)
+                    }
+                }
             };
         }, "container");
     </script>
