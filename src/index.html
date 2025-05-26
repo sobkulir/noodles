@@ -214,7 +214,43 @@
                             .map((y, j) => new Square(i, j))
                     );
                 sketch.ellipseMode(sketch.CENTER);
+                
+                // SPH
+                let graphics = sketch.createGraphics(WIDTH, HEIGHT);
+  graphics.textSize(HEIGHT / 1.2);
+  graphics.textAlign(sketch.CENTER, sketch.CENTER);
+  graphics.textStyle(sketch.BOLD)
+  graphics.fill(255);
+  graphics.noStroke();
+  graphics.background(0);
+  graphics.text("SPH", WIDTH / 2, HEIGHT / 2);
 
+  for (let i = 0; i < HEIGHT; ++i) {
+    for (let j = 0; j < WIDTH; ++j) {
+      let textMask = graphics.get(j, i)[0]; // Brightness from rendered text (R channel)
+      mriezka[i][j].lastTrialId = textMask > 128 ? 0 : USED_TRIAL_ID;
+    }
+  }
+
+                // HORIZONTAL LINES
+                // let gotGoodRatio = false
+                // let reps = 0
+                // while (!gotGoodRatio) {
+                //     let filled = 0
+                //     for (let i = 0; i < HEIGHT; ++i) {
+                //         for (let j = 0; j < WIDTH; ++j) {
+                //             let noiseValue = sketch.noise(reps *1.3, i / 15, j / 5) * 255; // Increase detail
+                //             let threshold = (i % 2 === 0) ? 60 : 150; // Create a striped pattern
+                //             mriezka[i][j].lastTrialId = noiseValue > threshold ? USED_TRIAL_ID : 0;
+                //             filled = (mriezka[i][j].lastTrialId == USED_TRIAL_ID) ? filled : filled + 1;
+                //         }
+                //     }
+                    
+                //     ratio = filled / (HEIGHT * WIDTH)
+                //     console.log(ratio)
+                //     gotGoodRatio = (ratio > 0.1 && ratio < 0.35)
+                //     reps++
+                // }
                 paths = generatePath(mriezka,WIDTH, HEIGHT, sketch);
 
             };
