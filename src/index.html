@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+
+    <title>p5.js template</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+        }
+
+        /* canvas {
+            box-shadow: 0 5px 30px 0 rgba(0, 0, 0, 0.1);
+        } */
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.4.1/lib/p5.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.2.0/addons/p5.sound.min.js"></script> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script> -->
+    <!-- <script src="https://unpkg.com/p5.js-svg@1.3.1"></script> -->
+    <!-- <script src="./steganosnapshot.js"></script> -->
+    <!-- <script type="module" src="modules/QuadTree.mjs"></script>
+  <script type="module" src="modules/Rect.mjs"></script> -->
+
+    <script>
+        const MRIEZKA_SIZE = 5;
+        const SQUARE_BORDER = 7;
+        
+        const BORDER_FRAC = 0.28
+
+        const ALLOW_DIAGONAL = true;
+        const NUM_PATHS = 550;
+        const NUM_TRIALS = 7000;
+        const USED_TRIAL_ID = -1;
+
+        const BLOB_BORDER = 100;
+
+        const IS_SQUARE = true;
+
+        window.P5 = p5;
+        let vw, vh, vmin, vmax;
+        let p5sketch;
+
+        let mriezka;
+        
+        class BlobParams {
+            constructor(r, c, d) {
+                this.x = r;
+                this.y = c;
+                this.d = d;
+            }
+        }
+
+        let BLOB;
+
+        class Square {
+            constructor(row, col) {
+                this.lastTrialId = 0;
+                this.isFillerPattern = false; // used for stripped version
+                this.row = row;
+                this.col = col;
+
+                let randOffset = () => p5sketch.random(SQUARE_BORDER, MRIEZKA_SIZE - SQUARE_BORDER);
+                this.offX = randOffset();
+                this.offY = randOffset();
+            }
+        }
+
+        let generateOnePath = (trialId, mriezka,width, height, sketch) => {
+            let curPath = [];
+            let cur = null;
+            let num_trials = 0;
+            const MAX_ATTEMPTS = 500
+            while (cur == null && num_trials++ < MAX_ATTEMPTS) {
+                let hmm = mriezka[Math.floor(sketch.random(height))][Math.floor(sketch.random(width))];
+                cur = (hmm.lastTrialId != USED_TRIAL_ID) ? hmm : null;
+            }
+            if (cur == null) {
+                return [];
+            }
+
+            cur.lastTrialId = trialId;
+            curPath.push(cur);
+
+            let dirs = [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1]
+            ];
+
+            if (ALLOW_DIAGONAL) {
+                dirs.push(
+                    [-1,-1],
+                    [1,-1],
+                    [-1,1],
+                    [1,1],
+                )
+            }
+
+            while (true) {
+                // choose rand out of dirs
+                let allowed = [];
+                for (let dir of dirs) {
+                    let next = mriezka[cur.row + dir[0]]?.[cur.col + dir[1]];
+                    if (next && next.lastTrialId != trialId && next.lastTrialId != USED_TRIAL_ID) {
+                        allowed.push(next);
+                    }
+                }
+
+                if (allowed.length == 0) {
+                    break;
+                }
+
+                let next = allowed[Math.floor(sketch.random(allowed.length))];
+                next.lastTrialId = trialId;
+                cur = next;
+                curPath.push(cur);
+            }
+
+            return curPath;
+        };
+
+        // ChatGPT
+        let getBestBlobPosition = (mriezka, WIDTH, HEIGHT) => {
+            const numTries = 20;
+            const best = { x: 0, y: 0, minDist: -Infinity };
+
+            // Collect filler coordinates
+            const fillers = [];
+            for (let i = 0; i < HEIGHT; i++) {
+                for (let j = 0; j < WIDTH; j++) {
+                if (mriezka[i][j].isFillerPattern) {
+                    fillers.push({ x: i, y: j });
+                }
+                }
+            }
+
+            // Distance helper
+            function dist(x1, y1, x2, y2) {
+                return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
+            }
+
+            for (let t = 0; t < numTries; t++) {
+                const ii = Math.floor(Math.random() * HEIGHT);
+                const jj = Math.floor(Math.random() * WIDTH);
+
+                let minDist = Infinity;
+                for (const filler of fillers) {
+                    const d = dist(ii, jj, filler.x, filler.y);
+                    if (d < minDist) minDist = d;
+                }
+
+                                // Also check distance to borders
+                const distToLeft   = ii;
+                const distToRight  = HEIGHT - 1 - ii;
+                const distToTop    = jj;
+                const distToBottom = WIDTH - 1 - jj;
+                const minBorderDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+
+                minDist = Math.min(minDist, minBorderDist);
+
+                if (minDist > best.minDist) {
+                    best.x = ii;
+                    best.y = jj;
+                    best.minDist = minDist;
+                }
+            }
+
+            return [best.x, best.y];
+        }
+
+        let generatePath = (mriezka, width, height,sketch) => {
+            let paths = []
+            let used_squares = 0;
+            const total_squares = width * height;
+            let i = 0;
+            while (used_squares < total_squares && i < NUM_PATHS) {
+                let trials = Array(Math.floor(NUM_TRIALS/(i+1))).fill(0).map((x, j) =>
+                    generateOnePath(i*NUM_TRIALS + j + 5, mriezka, width, height,sketch)
+                );
+                let p = trials.reduce(
+                    (accArr, curArr) => { return (accArr.length > curArr.length) ? accArr : curArr },
+                    []
+                );
+                if (p.length == 0) {
+                    break;
+                }
+
+                for (let j = 0; j < p.length; ++j) {
+                    ++used_squares;
+                    mriezka[p[j].row][p[j].col].lastTrialId = USED_TRIAL_ID;
+                }
+
+                paths.push(p)
+                ++i
+            }
+
+            return paths;
+        };
+
+        let drawPath = (path, sketch) => {
+            // path : Array<Square>
+
+            sketch.beginShape();
+            sketch.strokeWeight(0.5 + sketch.noise(path.length) - 0.5)
+            const color = sketch.color(0,0,0);
+            color.setAlpha(10)
+            sketch.stroke(color)
+            sketch.noFill();
+            // sketch.curveTightness(sketch.random(3) - 1.5)
+            sketch.curveVertex(
+              path[0].col * MRIEZKA_SIZE + path[0].offX,
+              path[0].row * MRIEZKA_SIZE + path[0].offY
+            );
+            for (let i = 0; i < path.length; i++) {
+                let cur = path[i];
+                let next = path[i + 1];
+
+                sketch.curveVertex(cur.col * MRIEZKA_SIZE + cur.offX, cur.row * MRIEZKA_SIZE + cur.offY)
+
+                /*sketch.line(
+                    cur.col * MRIEZKA_SIZE + cur.offX,
+                    cur.row * MRIEZKA_SIZE + cur.offY,
+                    next.col * MRIEZKA_SIZE + next.offX,
+                    next.row * MRIEZKA_SIZE + next.offY
+                );*/
+            }
+            sketch.curveVertex(
+              path[path.length - 1].col * MRIEZKA_SIZE +
+                path[path.length - 1].offX,
+              path[path.length - 1].row * MRIEZKA_SIZE +
+                path[path.length - 1].offY
+            );
+            sketch.endShape();
+
+            for (let i = 0; i < path.length; i++) {
+              let cur = path[i];
+              sketch.strokeWeight(1);
+              sketch.point(
+                cur.col * MRIEZKA_SIZE + cur.offX,
+                cur.row * MRIEZKA_SIZE + cur.offY
+              );
+              sketch.strokeWeight(1);
+            }
+        }
+
+        let drawBlob = (blob, sketch) => {
+
+            // sketch.stroke(161, 29, 24, 3);
+            // sketch.strokeWeight(1);
+            sketch.noStroke()
+            sketch.fill((sketch.noise(sketch.frameCount/5)-0.5)*20 + 182, 146, 20, 2);
+            sketch.beginShape();
+            for (i = 0; i < 2 * sketch.PI; i += 2 * sketch.PI / 30) {
+                y = blob.y + sketch.sin(i) * blob.d;
+                x = blob.x + sketch.cos(i) * blob.d;
+                const s = 7;
+                const res = 0.01;
+                off = sketch.map(sketch.noise(x* res, y * res), 0, 1, -blob.d/s, blob.d/s)
+                sketch.curveVertex(x + off, y + off)
+            }
+            sketch.endShape(sketch.CLOSE)
+        }
+
+        new P5((sketch) => {
+            sketch.preload = () => { };
+
+            sketch.setup = () => {
+              const ARTWORK_BORDER = Math.max(Math.ceil(BORDER_FRAC * sketch.windowWidth), Math.ceil(BORDER_FRAC * sketch.windowHeight));
+              let w = sketch.windowWidth - ARTWORK_BORDER;
+              let h = sketch.windowHeight - ARTWORK_BORDER;
+              
+              if (IS_SQUARE) {
+                h = w = Math.min(w, h)
+              }
+
+              const WIDTH_PX = w - (w % MRIEZKA_SIZE);
+              const HEIGHT_PX = h - (h % MRIEZKA_SIZE);
+              const WIDTH = WIDTH_PX / MRIEZKA_SIZE;
+              const HEIGHT = HEIGHT_PX / MRIEZKA_SIZE;
+                /* Seeding */
+                p5sketch = sketch;
+                sketch.createCanvas(WIDTH_PX, HEIGHT_PX);
+                sketch.background(255);
+
+                mriezka = Array(HEIGHT)
+                    .fill(0)
+                    .map((x, i) =>
+                        Array(WIDTH)
+                            .fill(0)
+                            .map((y, j) => new Square(i, j))
+                    );
+                sketch.ellipseMode(sketch.CENTER);
+
+                // HORIZONTAL LINES
+                let gotGoodRatio = false
+                let reps = 0
+                while (!gotGoodRatio) {
+                    let filled = 0
+                    for (let i = 0; i < HEIGHT; ++i) {
+                        for (let j = 0; j < WIDTH; ++j) {
+                            const f = 0.05
+                            let noiseValue = sketch.noise(reps *1.3, i * f, j * f) * 255; // Increase detail
+                            const filler_threshold = 100
+                            let threshold = (i % 2 === 0) ? filler_threshold : 250; // Create a striped pattern
+                            mriezka[i][j].lastTrialId = noiseValue > threshold ? USED_TRIAL_ID : 0;
+                            mriezka[i][j].isFillerPattern = (threshold == filler_threshold) && (noiseValue <= filler_threshold);
+                            filled = (mriezka[i][j].lastTrialId == USED_TRIAL_ID) ? filled : filled + 1;
+                        }
+                    }
+                    
+                    ratio = filled / (HEIGHT * WIDTH)
+                    console.log(ratio)
+                    gotGoodRatio = true //(ratio > 0.1 && ratio < 0.35)
+                    reps++
+                }
+                
+                // VISUALIZE ISLANDS
+                // for (let i = 0; i < HEIGHT; ++i) {
+                //     for (let j = 0; j < WIDTH; ++j) {
+                //         if (!mriezka[i][j].isFillerPattern) continue;
+
+                //         sketch.stroke('red')
+                //         sketch.strokeWeight(2)
+                //         sketch.point(mriezka[i][j].col * MRIEZKA_SIZE, mriezka[i][j].row * MRIEZKA_SIZE)
+                //     }
+                // }
+                
+                const blobRC = getBestBlobPosition(mriezka, WIDTH, HEIGHT);
+                BLOB = new BlobParams(
+                    blobRC[1]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
+                    blobRC[0]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
+                    sketch.random(w * 0.05, w * 0.07),
+                )
+                paths = generatePath(mriezka,WIDTH, HEIGHT, sketch);
+
+            };
+
+            sketch.draw = () => {
+                // sketch.background(255)
+                sketch.frameRate(15)
+                if (sketch.frameCount > 150) {
+                    sketch.frameRate(30)
+                }
+                
+                if (sketch.frameCount > 400) {
+                    sketch.frameRate(0)
+                }
+        
+                for (const row of mriezka) {
+                    for (const square of row) {
+                        const DIV = 0.01
+                        const TIMES = 10
+                        square.offX = MRIEZKA_SIZE / 2 + (sketch.noise(square.row * TIMES, square.col * TIMES, 0 + sketch.frameCount*DIV) - 0.5) * (MRIEZKA_SIZE - 2*SQUARE_BORDER)
+                        square.offY = MRIEZKA_SIZE / 2 + (sketch.noise(square.row * TIMES, square.col * TIMES, 100 + sketch.frameCount*DIV) - 0.5) * (MRIEZKA_SIZE - 2*SQUARE_BORDER)
+                    }
+                }
+
+                if (sketch.frameCount < 300) {
+                    for (const p of paths) {
+                        for (let i = 0; i < 1; ++i) {
+                            drawPath(p, sketch)
+                        }
+                    }
+                }
+
+                if (sketch.frameCount > 55) {
+                    drawBlob(BLOB, sketch)
+                }
+
+                if (sketch.frameCount % 100 == 0) {
+                    console.log(sketch.frameCount)
+                }
+
+            };
+        }, "container");
+    </script>
+</head>
+
+<body>
+    <div id="container"></div>
+</body>
+
+</html>
