@@ -33,7 +33,7 @@
   <script type="module" src="modules/Rect.mjs"></script> -->
 
     <script>
-        const MRIEZKA_SIZE = 20;
+        const MRIEZKA_SIZE = 30;
         const SQUARE_BORDER = 7;
         
         const ALLOW_DIAGONAL = true;
@@ -41,28 +41,15 @@
         const NUM_TRIALS = 7000;
         const USED_TRIAL_ID = -1;
 
-        const BLOB_BORDER = 100;
-
         window.P5 = p5;
         let vw, vh, vmin, vmax;
         let p5sketch;
 
         let mriezka;
-        
-        class BlobParams {
-            constructor(r, c, d) {
-                this.x = r;
-                this.y = c;
-                this.d = d;
-            }
-        }
-
-        let BLOB;
 
         class Square {
             constructor(row, col) {
                 this.lastTrialId = 0;
-                this.isFillerPattern = false; // used for stripped version
                 this.row = row;
                 this.col = col;
 
@@ -126,55 +113,6 @@
 
             return curPath;
         };
-
-        // ChatGPT
-        let getBestBlobPosition = (mriezka, WIDTH, HEIGHT) => {
-            const numTries = 20;
-            const best = { x: 0, y: 0, minDist: -Infinity };
-
-            // Collect filler coordinates
-            const fillers = [];
-            for (let i = 0; i < HEIGHT; i++) {
-                for (let j = 0; j < WIDTH; j++) {
-                if (mriezka[i][j].isFillerPattern) {
-                    fillers.push({ x: i, y: j });
-                }
-                }
-            }
-
-            // Distance helper
-            function dist(x1, y1, x2, y2) {
-                return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
-            }
-
-            for (let t = 0; t < numTries; t++) {
-                const ii = Math.floor(Math.random() * HEIGHT);
-                const jj = Math.floor(Math.random() * WIDTH);
-
-                let minDist = Infinity;
-                for (const filler of fillers) {
-                    const d = dist(ii, jj, filler.x, filler.y);
-                    if (d < minDist) minDist = d;
-                }
-
-                                // Also check distance to borders
-                const distToLeft   = ii;
-                const distToRight  = HEIGHT - 1 - ii;
-                const distToTop    = jj;
-                const distToBottom = WIDTH - 1 - jj;
-                const minBorderDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
-
-                minDist = Math.min(minDist, minBorderDist);
-
-                if (minDist > best.minDist) {
-                    best.x = ii;
-                    best.y = jj;
-                    best.minDist = minDist;
-                }
-            }
-
-            return [best.x, best.y];
-        }
 
         let generatePath = (mriezka, width, height,sketch) => {
             let paths = []
@@ -251,24 +189,6 @@
             }
         }
 
-        let drawBlob = (blob, sketch) => {
-
-            // sketch.stroke(161, 29, 24, 3);
-            // sketch.strokeWeight(1);
-            sketch.noStroke()
-            sketch.fill((sketch.noise(sketch.frameCount/5)-0.5)*20 + 182, 146, 20, 2);
-            sketch.beginShape();
-            for (i = 0; i < 2 * sketch.PI; i += 2 * sketch.PI / 30) {
-                y = blob.y + sketch.sin(i) * blob.d;
-                x = blob.x + sketch.cos(i) * blob.d;
-                const s = 7;
-                const res = 0.01;
-                off = sketch.map(sketch.noise(x* res, y * res), 0, 1, -blob.d/s, blob.d/s)
-                sketch.curveVertex(x + off, y + off)
-            }
-            sketch.endShape(sketch.CLOSE)
-        }
-
         new P5((sketch) => {
             sketch.preload = () => { };
 
@@ -295,48 +215,13 @@
                     );
                 sketch.ellipseMode(sketch.CENTER);
 
-                // HORIZONTAL LINES
-                let gotGoodRatio = false
-                let reps = 0
-                while (!gotGoodRatio) {
-                    let filled = 0
-                    for (let i = 0; i < HEIGHT; ++i) {
-                        for (let j = 0; j < WIDTH; ++j) {
-                            let noiseValue = sketch.noise(reps *1.3, i / 15, j / 5) * 255; // Increase detail
-                            const filler_threshold = 70
-                            let threshold = (i % 2 === 0) ? filler_threshold : 250; // Create a striped pattern
-                            mriezka[i][j].lastTrialId = noiseValue > threshold ? USED_TRIAL_ID : 0;
-                            mriezka[i][j].isFillerPattern = (threshold == filler_threshold) && (noiseValue < filler_threshold);
-                            filled = (mriezka[i][j].lastTrialId == USED_TRIAL_ID) ? filled : filled + 1;
-                        }
-                    }
-                    
-                    ratio = filled / (HEIGHT * WIDTH)
-                    console.log(ratio)
-                    gotGoodRatio = true //(ratio > 0.1 && ratio < 0.35)
-                    reps++
-                }
-                
-                const blobRC = getBestBlobPosition(mriezka, WIDTH, HEIGHT);
-                BLOB = new BlobParams(
-                    blobRC[1]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
-                    blobRC[0]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
-                    sketch.random(w/90, w/20),
-                )
                 paths = generatePath(mriezka,WIDTH, HEIGHT, sketch);
 
             };
 
             sketch.draw = () => {
                 // sketch.background(255)
-                sketch.frameRate(15)
-                if (sketch.frameCount > 150) {
-                    sketch.frameRate(30)
-                }
-                
-                if (sketch.frameCount > 400) {
-                    sketch.frameRate(0)
-                }
+                // sketch.frameRate(3)
                 for (const row of mriezka) {
                     for (const square of row) {
                         const DIV = 0.01
@@ -350,9 +235,6 @@
                         drawPath(p, sketch)
                     }
                 }
-                if (sketch.frameCount > 55) 
-                drawBlob(BLOB, sketch)
-
             };
         }, "container");
     </script>
