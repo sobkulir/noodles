@@ -36,7 +36,7 @@
         const MRIEZKA_SIZE = 5;
         const SQUARE_BORDER = 6;
         
-        const BORDER_FRAC = 0.28
+        const BORDER_FRAC = 0.26
 
         const ALLOW_DIAGONAL = true;
         const NUM_PATHS = 550;
@@ -223,6 +223,7 @@
               path[0].col * MRIEZKA_SIZE + path[0].offX,
               path[0].row * MRIEZKA_SIZE + path[0].offY
             );
+            
             for (let i = 0; i < path.length; i++) {
                 let cur = path[i];
                 let next = path[i + 1];
@@ -293,7 +294,6 @@
                 p5sketch = sketch;
                 sketch.createCanvas(WIDTH_PX, HEIGHT_PX);
                 sketch.background(255);
-
                 mriezka = Array(HEIGHT)
                     .fill(0)
                     .map((x, i) =>
@@ -303,40 +303,84 @@
                     );
                 sketch.ellipseMode(sketch.CENTER);
 
-                // HORIZONTAL LINES
-                let gotGoodRatio = false
-                let reps = 0
-                while (!gotGoodRatio) {
-                    let filled = 0
+                // BAGUETTE MAGIC
+                const UNUSED = 0;
+                const HORIZONTAL_LINES = 1;
+                const EMPTY = 2;
+            
+                const pattern = Array(HEIGHT)
+                    .fill(0)
+                    .map((x, i) =>
+                        Array(WIDTH)
+                            .fill(0)
+                            .map((y, j) => UNUSED)
+                    );
+                
+                // BISCH
+                let goodRatio = false;
+                let SCALE_X = 0.007;
+                let SCALE_Y = 0.007;
+                let PLANE = 0;
+                sketch.noiseDetail(4, 0.75)
+
+                while (!goodRatio) {
+                    let filled = 0;
+                    const c = sketch.random();
                     for (let i = 0; i < HEIGHT; ++i) {
                         for (let j = 0; j < WIDTH; ++j) {
-                            const f = 0.05
-                            let noiseValue = sketch.noise(reps *1.3, i * f, j * f) * 255; // Increase detail
-                            const filler_threshold = 100
-                            let threshold = (i % 2 === 0) ? filler_threshold : 250; // Create a striped pattern
-                            mriezka[i][j].lastTrialId = noiseValue > threshold ? USED_TRIAL_ID : 0;
-                            mriezka[i][j].isFillerPattern = (threshold == filler_threshold) && (noiseValue <= filler_threshold);
-                            filled = (mriezka[i][j].lastTrialId == USED_TRIAL_ID) ? filled : filled + 1;
+                            const p = sketch.noise(i * SCALE_X, j * SCALE_Y)
+                            pattern[i][j] = UNUSED
+                            if (pattern[i][j] == UNUSED) {
+                                if (p > c) {
+                                    pattern[i][j] = UNUSED;
+                                } else {
+                                    pattern[i][j] = HORIZONTAL_LINES;
+                                }
+                            }
+                            filled = (pattern[i][j] == UNUSED) ? filled + 1 : filled;
                         }
                     }
-                    
-                    ratio = filled / (HEIGHT * WIDTH)
-                    console.log(ratio)
-                    gotGoodRatio = true //(ratio > 0.1 && ratio < 0.35)
-                    reps++
-                }
-                
-                // VISUALIZE ISLANDS
-                // for (let i = 0; i < HEIGHT; ++i) {
-                //     for (let j = 0; j < WIDTH; ++j) {
-                //         if (!mriezka[i][j].isFillerPattern) continue;
 
-                //         sketch.stroke('red')
-                //         sketch.strokeWeight(2)
-                //         sketch.point(mriezka[i][j].col * MRIEZKA_SIZE, mriezka[i][j].row * MRIEZKA_SIZE)
-                //     }
-                // }
-                
+                    const r = filled / (HEIGHT * WIDTH);
+                    console.log(HEIGHT, WIDTH, c, r)
+                    if (r > 0.6 && r < 0.8) {
+                        goodRatio = true
+                    }
+
+                }
+
+
+                SCALE_X = 0.05;
+                SCALE_Y = 0.05;
+                // WATRR
+                for (let i = 0; i < HEIGHT; ++i) {
+                        for (let j = 0; j < WIDTH; ++j) {
+                            const p = sketch.noise(i * SCALE_X, j * SCALE_Y)
+                            if (pattern[i][j] == UNUSED) {
+                                if (p > 0.5) {
+                                    pattern[i][j] = UNUSED;
+                                } else {
+                                    pattern[i][j] = (sketch.random() > 0.3) ? EMPTY : HORIZONTAL_LINES;
+                                }
+                            }
+                        }
+                    }
+
+                // MAKE HORIZONTAL LINES
+                for (let i = 0; i < HEIGHT; ++i) {
+                    for (let j = 0; j < HEIGHT; ++j) {
+                        if (pattern[i][j] == HORIZONTAL_LINES) {
+                            mriezka[i][j].lastTrialId = (i % 2 == 0) ? USED_TRIAL_ID : 0;
+                        } else if (pattern[i][j] == UNUSED) {
+                            mriezka[i][j].lastTrialId = 0;
+                        } else if (pattern[i][j] == EMPTY) {
+                            mriezka[i][j].lastTrialId = USED_TRIAL_ID;
+                        }
+                        mriezka[i][j].isFillerPattern = (pattern[i][j] != HORIZONTAL_LINES);
+
+                    }
+                }
+                  
                 const blobRC = getBestBlobPosition(mriezka, WIDTH, HEIGHT);
                 BLOB = new BlobParams(
                     blobRC[1]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
