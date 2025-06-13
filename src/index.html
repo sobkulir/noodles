@@ -47,12 +47,32 @@
 
         const IS_SQUARE = true;
 
+        // BAGUETTE MAGIC
+        const UNUSED = 0;
+        const HORIZONTAL_LINES = 1;
+        const WATER = 2;
+        const WATER_LINES = 3;
+        const EMPTY = 4;
+
+        let WATER_DIRS = [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+                [-1,-1],
+                [1,-1],
+                [-1,1],
+                [1,1],
+            ];
+
+
         window.P5 = p5;
         let vw, vh, vmin, vmax;
         let p5sketch;
 
         let mriezka;
-        
+        let pattern;
+
         class BlobParams {
             constructor(r, c, d) {
                 this.x = r;
@@ -133,7 +153,7 @@
 
         // ChatGPT
         let getBestBlobPosition = (mriezka, WIDTH, HEIGHT) => {
-            const numTries = 20;
+            const numTries = 30;
             const best = { x: 0, y: 0, minDist: -Infinity };
 
             // Collect filler coordinates
@@ -274,6 +294,34 @@
             sketch.endShape(sketch.CLOSE)
         }
 
+        let drawWater = (r, c, sketch) => {
+            
+            // sketch.strokeWeight(3)
+            
+            // sketch.stroke(sketch.noise(r, c, sketch.frameCount*0.01)*255)
+            // sketch.fill(1)
+            // sketch.circle(c * MRIEZKA_SIZE + sketch.random() * 5 - 2.5, r * MRIEZKA_SIZE + sketch.random() * 5 - 2.5, 0.1)
+
+            if (sketch.random() > 0.01) return;
+            sketch.noStroke()
+            sketch.fill(20, 130, (sketch.noise(r*0.4, c*0.4)-0.5)*40 + 150, 6);
+            sketch.beginShape();
+            const START = 0
+            const f = sketch.noise(r*0.1, c * 0.1, sketch.frameCount * 0.01) * 5
+            const d = MRIEZKA_SIZE * sketch.noise(r,c, sketch.frameCount/5) * f
+            for (i = 0; i < 2 * sketch.PI; i += 2 * sketch.PI / 30) {
+                y = r * MRIEZKA_SIZE + sketch.sin(i) * d;
+                x = c * MRIEZKA_SIZE + sketch.cos(i) * d;
+                const s = 2;
+                const res = 0.01;
+                off = sketch.map(sketch.noise(x* res, y * res), 0, 1, -d*s, d*s)
+                sketch.curveVertex(x + off, y + off)
+            }
+            sketch.endShape(sketch.CLOSE)
+
+
+        }
+
         new P5((sketch) => {
             sketch.preload = () => { };
 
@@ -302,13 +350,8 @@
                             .map((y, j) => new Square(i, j))
                     );
                 sketch.ellipseMode(sketch.CENTER);
-
-                // BAGUETTE MAGIC
-                const UNUSED = 0;
-                const HORIZONTAL_LINES = 1;
-                const EMPTY = 2;
             
-                const pattern = Array(HEIGHT)
+                pattern = Array(HEIGHT)
                     .fill(0)
                     .map((x, i) =>
                         Array(WIDTH)
@@ -318,14 +361,15 @@
                 
                 // BISCH
                 let goodRatio = false;
-                let SCALE_X = 0.007;
-                let SCALE_Y = 0.007;
+                let SCALE_X = 0.005;
+                let SCALE_Y = 0.005;
                 let PLANE = 0;
                 sketch.noiseDetail(4, 0.75)
+                let c = sketch.random();
 
                 while (!goodRatio) {
                     let filled = 0;
-                    const c = sketch.random();
+                    c = sketch.random();
                     for (let i = 0; i < HEIGHT; ++i) {
                         for (let j = 0; j < WIDTH; ++j) {
                             const p = sketch.noise(i * SCALE_X, j * SCALE_Y)
@@ -342,45 +386,79 @@
                     }
 
                     const r = filled / (HEIGHT * WIDTH);
-                    console.log(HEIGHT, WIDTH, c, r)
-                    if (r > 0.6 && r < 0.8) {
+                    if (r > 0.4 && r < 0.6) {
                         goodRatio = true
                     }
 
                 }
 
 
-                SCALE_X = 0.05;
-                SCALE_Y = 0.05;
+                SCALE_X = 0.006;
+                SCALE_Y = 0.006;
                 // WATRR
+
                 for (let i = 0; i < HEIGHT; ++i) {
-                        for (let j = 0; j < WIDTH; ++j) {
-                            const p = sketch.noise(i * SCALE_X, j * SCALE_Y)
-                            if (pattern[i][j] == UNUSED) {
-                                if (p > 0.5) {
-                                    pattern[i][j] = UNUSED;
-                                } else {
-                                    pattern[i][j] = (sketch.random() > 0.3) ? EMPTY : HORIZONTAL_LINES;
+                    for (let j = 0; j < WIDTH; ++j) {
+                        const p = sketch.noise(i * SCALE_X, j * SCALE_Y)
+                        if (pattern[i][j] == UNUSED) {
+                            const HEH = c+sketch.noise(i*0.4,j*0.4) * 0.04
+                            // if (p < HEH || p < HEH + sketch.random() * 0.1) {
+                            if (p < HEH) {
+                                const S = 0.3
+                                pattern[i][j] = (sketch.noise(i*S, j*S) > 0.4) ? WATER : WATER_LINES;
+                                if (j > 0 && pattern[i][j-1] == WATER_LINES) {
+                                    pattern[i][j] = (sketch.noise(i*S, j*S) > 0.7) ? WATER : WATER_LINES;
                                 }
                             }
                         }
                     }
+                }
+
 
                 // MAKE HORIZONTAL LINES
                 for (let i = 0; i < HEIGHT; ++i) {
-                    for (let j = 0; j < HEIGHT; ++j) {
-                        if (pattern[i][j] == HORIZONTAL_LINES) {
+                    for (let j = 0; j < WIDTH; ++j) {
+                        if (pattern[i][j] == HORIZONTAL_LINES || pattern[i][j] == WATER_LINES) {
                             mriezka[i][j].lastTrialId = (i % 2 == 0) ? USED_TRIAL_ID : 0;
                         } else if (pattern[i][j] == UNUSED) {
                             mriezka[i][j].lastTrialId = 0;
-                        } else if (pattern[i][j] == EMPTY) {
+                        } else if (pattern[i][j] == EMPTY || pattern[i][j] == WATER) {
                             mriezka[i][j].lastTrialId = USED_TRIAL_ID;
                         }
-                        mriezka[i][j].isFillerPattern = (pattern[i][j] != HORIZONTAL_LINES);
-
                     }
                 }
-                  
+
+                // LETS SEE
+                for (let i = 0; i < HEIGHT; ++i) {
+                    for (let j = 0; j < HEIGHT; ++j) {
+                        if (pattern[i][j] == WATER) {
+                            mriezka[i][j].lastTrialId = sketch.random() > 0.4 ? USED_TRIAL_ID : 0;
+                        }
+                    }
+                }
+
+                // expand water
+                for (let i = 0; i < 1.5*HEIGHT*WIDTH; ++i) {
+                    let x = sketch.floor(sketch.random()*HEIGHT);
+                    let y = sketch.floor(sketch.random()*WIDTH);
+                    if (pattern[x][y] != WATER) continue;
+                    for (let j = 0; j < sketch.ceil(sketch.random() * 5); ++j) {
+                        const dir = WATER_DIRS[sketch.floor(sketch.random() * WATER_DIRS.length)]
+                        x += dir[0]
+                        y += dir[1]
+                    }
+                    x = Math.max(0, Math.min(HEIGHT-1, x))
+                    y = Math.max(0, Math.min(WIDTH-1, y))
+                    pattern[x][y] = WATER
+                }
+                
+                // filler pattern
+                for (let i = 0; i < HEIGHT; ++i) {
+                    for (let j = 0; j < HEIGHT; ++j) {
+                        mriezka[i][j].isFillerPattern = (pattern[i][j] != HORIZONTAL_LINES);
+                    }
+                }
+
                 const blobRC = getBestBlobPosition(mriezka, WIDTH, HEIGHT);
                 BLOB = new BlobParams(
                     blobRC[1]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
@@ -411,6 +489,18 @@
                     }
                 }
 
+                // water
+                if (sketch.frameCount > 20 && sketch.frameCount < 140) {
+                    for (let i = 0; i < pattern.length; ++i) {
+                        for (let j = 0; j < pattern[i].length; ++j) {
+                            if (pattern[i][j] != WATER && pattern[i][j] != WATER_LINES) continue;
+                            drawWater(i, j, sketch);
+                        }
+                    }
+                }
+
+
+                
                 if (sketch.frameCount < 300) {
                     for (const p of paths) {
                         for (let i = 0; i < 1; ++i) {
