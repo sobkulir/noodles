@@ -39,13 +39,13 @@
         const BORDER_FRAC = 0.26
 
         const ALLOW_DIAGONAL = true;
-        const NUM_PATHS = 550;
+        const NUM_PATHS = 1000;
         const NUM_TRIALS = 7000;
         const USED_TRIAL_ID = -1;
 
         const BLOB_BORDER = 100;
 
-        const IS_SQUARE = true;
+        const IS_SQUARE = false;
 
         // BAGUETTE MAGIC
         const UNUSED = 0;
@@ -87,9 +87,10 @@
             constructor(row, col) {
                 this.lastTrialId = 0;
                 this.isFillerPattern = false; // used for stripped version
+                this.nonWaterDist = Number.POSITIVE_INFINITY; // distance to closest non-water
                 this.row = row;
                 this.col = col;
-
+                
                 let randOffset = () => p5sketch.random(SQUARE_BORDER, MRIEZKA_SIZE - SQUARE_BORDER);
                 this.offX = randOffset();
                 this.offY = randOffset();
@@ -153,7 +154,7 @@
 
         // ChatGPT
         let getBestBlobPosition = (mriezka, WIDTH, HEIGHT) => {
-            const numTries = 30;
+            const numTries = 50;
             const best = { x: 0, y: 0, minDist: -Infinity };
 
             // Collect filler coordinates
@@ -287,14 +288,14 @@
                 y = blob.y + sketch.sin(i) * blob.d;
                 x = blob.x + sketch.cos(i) * blob.d;
                 const s = 7;
-                const res = 0.01;
+                const res = 0.008;
                 off = sketch.map(sketch.noise(x* res, y * res), 0, 1, -blob.d/s, blob.d/s)
-                sketch.curveVertex(x + off, y + off)
+                sketch.curveVertex(x + sketch.cos(i) * off, y + sketch.sin(i) * off)
             }
             sketch.endShape(sketch.CLOSE)
         }
 
-        let drawWater = (r, c, sketch) => {
+        let drawWater = (r, c, nonWaterDist, sketch) => {
             
             // sketch.strokeWeight(3)
             
@@ -312,9 +313,10 @@
             for (i = 0; i < 2 * sketch.PI; i += 2 * sketch.PI / 30) {
                 y = r * MRIEZKA_SIZE + sketch.sin(i) * d;
                 x = c * MRIEZKA_SIZE + sketch.cos(i) * d;
-                const s = 2;
+                const s = 2
                 const res = 0.01;
-                off = sketch.map(sketch.noise(x* res, y * res), 0, 1, -d*s, d*s)
+                off = sketch.map(sketch.noise(x* res, y * res) - 0.1, 0, 1, -d*s, d*s)
+                off = nonWaterDist < off ? nonWaterDist * sketch.random()*0.3 : off;
                 sketch.curveVertex(x + off, y + off)
             }
             sketch.endShape(sketch.CLOSE)
@@ -415,6 +417,62 @@
                 }
 
 
+
+
+                // Distances to non-water (chatgpt)
+                const nonWaterPositions = [];
+                for (let i = -1; i <= HEIGHT; i++) {
+                    for (let j = -1; j <= WIDTH; j++) {
+                        if (i == -1 || j == -1 || i == HEIGHT || j == WIDTH) {
+                            nonWaterPositions.push([i,j]);
+                            continue;
+                        }
+
+                        if (pattern[i][j] !== WATER && pattern[i][j] !== WATER_LINES) {
+                            nonWaterPositions.push([i, j]);
+                        }
+                    }
+                }
+
+                // Compute Euclidean distance from each cell to closest land cell
+                for (let i = 0; i < HEIGHT; i++) {
+                    for (let j = 0; j < WIDTH; j++) {
+                        if (pattern[i][j] === WATER || pattern[i][j] === WATER_LINES) {
+                            for (const [li, lj] of nonWaterPositions) {
+                                const dist = Math.sqrt((i - li) ** 2 + (j - lj) ** 2) * Math.sqrt(2 * MRIEZKA_SIZE ** 2);
+                                if (dist < mriezka[i][j].nonWaterDist) {
+                                    mriezka[i][j].nonWaterDist = dist;
+                                }
+                            }
+                        } else {
+                            mriezka[i][j].nonWaterDist = 0; // Land has zero distance to itself
+                        }
+                    }
+                }
+
+                // LETS SEE
+                // for (let i = 0; i < HEIGHT; ++i) {
+                //     for (let j = 0; j < HEIGHT; ++j) {
+                //         if (pattern[i][j] == WATER) {
+                //             mriezka[i][j].lastTrialId = sketch.random() > 0.4 ? USED_TRIAL_ID : 0;
+                //         }
+                //     }
+                // }
+
+                // expand water 1
+                for (let i = 0; i < HEIGHT; i++) {
+                    for (let j = 1; j < WIDTH; j++) {
+                        if (pattern[i][j] != WATER || mriezka[i][j].nonWaterDist > 4 * MRIEZKA_SIZE) continue;
+
+                        if (pattern[i][j] === WATER) {
+                            pattern[i][j] = sketch.random() < sketch.noise(i*0.02, j * 0.02) * 0.3 ? WATER_LINES : WATER;
+                        }
+                        if (pattern[i][j-1] === WATER_LINES) {
+                            pattern[i][j] = sketch.random() < 0.7 ? WATER_LINES : WATER;;
+                        }
+                    }
+                }
+                
                 // MAKE HORIZONTAL LINES
                 for (let i = 0; i < HEIGHT; ++i) {
                     for (let j = 0; j < WIDTH; ++j) {
@@ -428,17 +486,9 @@
                     }
                 }
 
-                // LETS SEE
-                for (let i = 0; i < HEIGHT; ++i) {
-                    for (let j = 0; j < HEIGHT; ++j) {
-                        if (pattern[i][j] == WATER) {
-                            mriezka[i][j].lastTrialId = sketch.random() > 0.4 ? USED_TRIAL_ID : 0;
-                        }
-                    }
-                }
-
-                // expand water
-                for (let i = 0; i < 1.5*HEIGHT*WIDTH; ++i) {
+                // expand water 2
+                // const C = sketch.random(1.3, 2.5)
+                for (let i = 0; i < 1.15*HEIGHT*WIDTH; ++i) {
                     let x = sketch.floor(sketch.random()*HEIGHT);
                     let y = sketch.floor(sketch.random()*WIDTH);
                     if (pattern[x][y] != WATER) continue;
@@ -451,10 +501,12 @@
                     y = Math.max(0, Math.min(WIDTH-1, y))
                     pattern[x][y] = WATER
                 }
-                
+
+
+
                 // filler pattern
                 for (let i = 0; i < HEIGHT; ++i) {
-                    for (let j = 0; j < HEIGHT; ++j) {
+                    for (let j = 0; j < WIDTH; ++j) {
                         mriezka[i][j].isFillerPattern = (pattern[i][j] != HORIZONTAL_LINES);
                     }
                 }
@@ -494,7 +546,7 @@
                     for (let i = 0; i < pattern.length; ++i) {
                         for (let j = 0; j < pattern[i].length; ++j) {
                             if (pattern[i][j] != WATER && pattern[i][j] != WATER_LINES) continue;
-                            drawWater(i, j, sketch);
+                            drawWater(i, j, mriezka[i][j].nonWaterDist, sketch);
                         }
                     }
                 }
