@@ -45,7 +45,7 @@
 
         const BLOB_BORDER = 100;
 
-        const IS_SQUARE = false;
+        const IS_SQUARE = true;
 
         // BAGUETTE MAGIC
         const UNUSED = 0;
@@ -154,7 +154,7 @@
 
         // ChatGPT
         let getBestBlobPosition = (mriezka, WIDTH, HEIGHT) => {
-            const numTries = 50;
+            const numTries = 100;
             const best = { x: 0, y: 0, minDist: -Infinity };
 
             // Collect filler coordinates
@@ -309,14 +309,14 @@
             sketch.beginShape();
             const START = 0
             const f = sketch.noise(r*0.1, c * 0.1, sketch.frameCount * 0.01) * 5
-            const d = MRIEZKA_SIZE * sketch.noise(r,c, sketch.frameCount/5) * f
+            const d = MRIEZKA_SIZE * sketch.noise(r,c, sketch.frameCount/5) * f * (nonWaterDist > MRIEZKA_SIZE*0.5 ? 1 : sketch.random() * 0.5)
             for (i = 0; i < 2 * sketch.PI; i += 2 * sketch.PI / 30) {
                 y = r * MRIEZKA_SIZE + sketch.sin(i) * d;
                 x = c * MRIEZKA_SIZE + sketch.cos(i) * d;
                 const s = 2
                 const res = 0.01;
                 off = sketch.map(sketch.noise(x* res, y * res) - 0.1, 0, 1, -d*s, d*s)
-                off = nonWaterDist < off ? nonWaterDist * sketch.random()*0.3 : off;
+                off = nonWaterDist < off ? MRIEZKA_SIZE * 0.3 * (sketch.random() -0.5)  : off;
                 sketch.curveVertex(x + off, y + off)
             }
             sketch.endShape(sketch.CLOSE)
@@ -395,7 +395,7 @@
                 }
 
 
-                SCALE_X = 0.006;
+                SCALE_X = 0.004;
                 SCALE_Y = 0.006;
                 // WATRR
 
@@ -403,7 +403,7 @@
                     for (let j = 0; j < WIDTH; ++j) {
                         const p = sketch.noise(i * SCALE_X, j * SCALE_Y)
                         if (pattern[i][j] == UNUSED) {
-                            const HEH = c+sketch.noise(i*0.4,j*0.4) * 0.04
+                            const HEH = c+sketch.noise(i*0.4,j*0.4) * 0.02
                             // if (p < HEH || p < HEH + sketch.random() * 0.1) {
                             if (p < HEH) {
                                 const S = 0.3
@@ -418,7 +418,7 @@
 
 
 
-
+                console.log('eyeaa')
                 // Distances to non-water (chatgpt)
                 const nonWaterPositions = [];
                 for (let i = -1; i <= HEIGHT; i++) {
@@ -450,14 +450,7 @@
                     }
                 }
 
-                // LETS SEE
-                // for (let i = 0; i < HEIGHT; ++i) {
-                //     for (let j = 0; j < HEIGHT; ++j) {
-                //         if (pattern[i][j] == WATER) {
-                //             mriezka[i][j].lastTrialId = sketch.random() > 0.4 ? USED_TRIAL_ID : 0;
-                //         }
-                //     }
-                // }
+
 
                 // expand water 1
                 for (let i = 0; i < HEIGHT; i++) {
@@ -468,7 +461,7 @@
                             pattern[i][j] = sketch.random() < sketch.noise(i*0.02, j * 0.02) * 0.3 ? WATER_LINES : WATER;
                         }
                         if (pattern[i][j-1] === WATER_LINES) {
-                            pattern[i][j] = sketch.random() < 0.7 ? WATER_LINES : WATER;;
+                            pattern[i][j] = sketch.random() < 0.5 ? WATER_LINES : WATER;;
                         }
                     }
                 }
@@ -486,13 +479,23 @@
                     }
                 }
 
+                // LETS SEE
+                // for (let i = 0; i < HEIGHT; ++i) {
+                //     for (let j = 0; j < WIDTH; ++j) {
+                //         const R = 0.01
+                //         if (pattern[i][j] == WATER && sketch.noise(i * R, j * R, 3) < 0.3) {
+                //             mriezka[i][j].lastTrialId = sketch.random() > 0.2 ? USED_TRIAL_ID : 0;
+                //         }
+                //     }
+                // }
+
                 // expand water 2
                 // const C = sketch.random(1.3, 2.5)
-                for (let i = 0; i < 1.15*HEIGHT*WIDTH; ++i) {
+                for (let i = 0; i < 0.8*HEIGHT*WIDTH; ++i) {
                     let x = sketch.floor(sketch.random()*HEIGHT);
                     let y = sketch.floor(sketch.random()*WIDTH);
                     if (pattern[x][y] != WATER) continue;
-                    for (let j = 0; j < sketch.ceil(sketch.random() * 5); ++j) {
+                    for (let j = 0; j < sketch.ceil(sketch.random() * 3); ++j) {
                         const dir = WATER_DIRS[sketch.floor(sketch.random() * WATER_DIRS.length)]
                         x += dir[0]
                         y += dir[1]
@@ -501,6 +504,7 @@
                     y = Math.max(0, Math.min(WIDTH-1, y))
                     pattern[x][y] = WATER
                 }
+
 
 
 
@@ -515,7 +519,7 @@
                 BLOB = new BlobParams(
                     blobRC[1]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
                     blobRC[0]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
-                    sketch.random(w * 0.05, w * 0.07),
+                    Math.sqrt(sketch.random(w * h * 0.007, w * h * 0.009)),
                 )
                 paths = generatePath(mriezka,WIDTH, HEIGHT, sketch);
 
