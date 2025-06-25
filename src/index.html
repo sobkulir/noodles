@@ -154,7 +154,7 @@
 
         // ChatGPT
         let getBestBlobPosition = (mriezka, WIDTH, HEIGHT) => {
-            const numTries = 130;
+            const numTries = 230;
             const best = { x: 0, y: 0, minDist: -Infinity };
 
             // Collect filler coordinates
@@ -234,7 +234,8 @@
             // path : Array<Square>
 
             sketch.beginShape();
-            sketch.strokeWeight(0.5 + sketch.noise(path.length) - 0.5)
+            sketch.strokeWeight(0.3 + 0.9*sketch.noise(path.length) )
+            // sketch.strokeWeight(0.7)
             const color = sketch.color(0,0,0);
             color.setAlpha(10)
             sketch.stroke(color)
@@ -303,20 +304,26 @@
             // sketch.fill(1)
             // sketch.circle(c * MRIEZKA_SIZE + sketch.random() * 5 - 2.5, r * MRIEZKA_SIZE + sketch.random() * 5 - 2.5, 0.1)
 
-            if (sketch.random() > 0.01) return;
+            if (sketch.random() > 0.015) return;
             sketch.noStroke()
             sketch.fill(20, 130, (sketch.noise(r*0.4, c*0.4)-0.5)*40 + 150, 6);
             sketch.beginShape();
             const START = 0
-            const f = sketch.noise(r*0.1, c * 0.1, sketch.frameCount * 0.01) * 5
-            const d = MRIEZKA_SIZE * sketch.noise(r,c, sketch.frameCount/5) * f * (nonWaterDist > MRIEZKA_SIZE*0.5 ? 1 : sketch.random() * 0.5)
+            const f =  sketch.noise(r*0.1, c * 0.1, sketch.frameCount * 0.01) * 5
+            let d = MRIEZKA_SIZE * sketch.noise(r,c, sketch.frameCount/5) * f * (nonWaterDist > 2*MRIEZKA_SIZE ? 1 : sketch.random() * MRIEZKA_SIZE*0.3)
+            if (sketch.frameCount > 100) {
+                d = MRIEZKA_SIZE * 2.5* sketch.random(0.8, 1);
+            }
             for (i = 0; i < 2 * sketch.PI; i += 2 * sketch.PI / 30) {
                 y = r * MRIEZKA_SIZE + sketch.sin(i) * d;
                 x = c * MRIEZKA_SIZE + sketch.cos(i) * d;
                 const s = 2
                 const res = 0.01;
-                off = sketch.map(sketch.noise(x* res, y * res) - 0.1, 0, 1, -d*s, d*s)
-                off = nonWaterDist < off ? MRIEZKA_SIZE * 0.3 * (sketch.random() -0.5)  : off;
+                off = sketch.map(sketch.noise(x* res, y * res, sketch.frameCount*0.8)-0.1, 0, 1, -d*s, d*s)
+                if (sketch.frameCount > 100) {
+                    off = sketch.map(sketch.noise(x* 0.02, y * 0.02, sketch.frameCount*0.3)-0.1, 0, 1, -d*s, d*s)
+                }
+                off = nonWaterDist < off ? 0  : off;
                 sketch.curveVertex(x + off, y + off)
             }
             sketch.endShape(sketch.CLOSE)
@@ -495,7 +502,7 @@
                     let x = sketch.floor(sketch.random()*HEIGHT);
                     let y = sketch.floor(sketch.random()*WIDTH);
                     if (pattern[x][y] != WATER) continue;
-                    for (let j = 0; j < sketch.ceil(sketch.random() * 3); ++j) {
+                    for (let j = 0; j < sketch.ceil(sketch.random() * 1); ++j) {
                         const dir = WATER_DIRS[sketch.floor(sketch.random() * WATER_DIRS.length)]
                         x += dir[0]
                         y += dir[1]
@@ -519,7 +526,7 @@
                 BLOB = new BlobParams(
                     blobRC[1]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
                     blobRC[0]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
-                    Math.sqrt(sketch.random(w * h * 0.007, w * h * 0.009)),
+                    Math.sqrt(sketch.random(w * h * 0.007, w * h * 0.0085)),
                 )
                 paths = generatePath(mriezka,WIDTH, HEIGHT, sketch);
 
@@ -546,7 +553,7 @@
                 }
 
                 // water
-                if (sketch.frameCount > 20 && sketch.frameCount < 140) {
+                if (sketch.frameCount > 20 && sketch.frameCount < 200) {
                     for (let i = 0; i < pattern.length; ++i) {
                         for (let j = 0; j < pattern[i].length; ++j) {
                             if (pattern[i][j] != WATER && pattern[i][j] != WATER_LINES) continue;
@@ -557,7 +564,7 @@
 
 
                 
-                if (sketch.frameCount < 300) {
+                if (sketch.frameCount < 250) {
                     for (const p of paths) {
                         for (let i = 0; i < 1; ++i) {
                             drawPath(p, sketch)
