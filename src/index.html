@@ -36,7 +36,8 @@
         const MRIEZKA_SIZE = 5;
         const SQUARE_BORDER = 6;
         
-        const BORDER_FRAC = 0.26
+        const BORDER_FRAC_HEIGHT = 0.2
+        const BORDER_FRAC_WIDTH = 0.16
 
         const ALLOW_DIAGONAL = true;
         const NUM_PATHS = 1000;
@@ -45,7 +46,7 @@
 
         const BLOB_BORDER = 100;
 
-        const IS_SQUARE = true;
+        const IS_SQUARE = false;
 
         // BAGUETTE MAGIC
         const UNUSED = 0;
@@ -335,9 +336,10 @@
             sketch.preload = () => { };
 
             sketch.setup = () => {
-              const ARTWORK_BORDER = Math.max(Math.ceil(BORDER_FRAC * sketch.windowWidth), Math.ceil(BORDER_FRAC * sketch.windowHeight));
-              let w = sketch.windowWidth - ARTWORK_BORDER;
-              let h = sketch.windowHeight - ARTWORK_BORDER;
+              const ARTWORK_BORDER_WIDTH = Math.ceil(BORDER_FRAC_WIDTH * sketch.windowWidth)
+              const ARTWORK_BORDER_HEIGHT = Math.ceil(BORDER_FRAC_HEIGHT * sketch.windowWidth)
+              let w = sketch.windowWidth - ARTWORK_BORDER_WIDTH;
+              let h = sketch.windowHeight - ARTWORK_BORDER_HEIGHT;
               
               if (IS_SQUARE) {
                 h = w = Math.min(w, h)
@@ -410,7 +412,7 @@
                     for (let j = 0; j < WIDTH; ++j) {
                         const p = sketch.noise(i * SCALE_X, j * SCALE_Y)
                         if (pattern[i][j] == UNUSED) {
-                            const HEH = c+sketch.noise(i*0.4,j*0.4) * 0.02
+                            const HEH = c*0.97 + sketch.noise(i*0.4,j*0.4) * 0.01
                             // if (p < HEH || p < HEH + sketch.random() * 0.1) {
                             if (p < HEH) {
                                 const S = 0.3
@@ -465,7 +467,8 @@
                         if (pattern[i][j] != WATER || mriezka[i][j].nonWaterDist > 4 * MRIEZKA_SIZE) continue;
 
                         if (pattern[i][j] === WATER) {
-                            pattern[i][j] = sketch.random() < sketch.noise(i*0.02, j * 0.02) * 0.3 ? WATER_LINES : WATER;
+                            // pattern[i][j] = sketch.random() < sketch.noise(i*0.02, j * 0.02) * 0.3 ? WATER_LINES : WATER;
+                            pattern[i][j] = sketch.random() < sketch.noise(i*0.3, j * 0.3) * 0.3 ? WATER_LINES : WATER;
                         }
                         if (pattern[i][j-1] === WATER_LINES) {
                             pattern[i][j] = sketch.random() < 0.5 ? WATER_LINES : WATER;;
@@ -526,7 +529,7 @@
                 BLOB = new BlobParams(
                     blobRC[1]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
                     blobRC[0]*MRIEZKA_SIZE + sketch.random(-MRIEZKA_SIZE, MRIEZKA_SIZE),
-                    Math.sqrt(sketch.random(w * h * 0.007, w * h * 0.0085)),
+                    Math.sqrt(sketch.random(w * h * 0.004, w * h * 0.007)),
                 )
                 paths = generatePath(mriezka,WIDTH, HEIGHT, sketch);
 
@@ -572,7 +575,7 @@
                     }
                 }
 
-                if (sketch.frameCount > 55) {
+                if (sketch.frameCount > 40) {
                     drawBlob(BLOB, sketch)
                 }
 
