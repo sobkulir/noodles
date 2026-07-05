@@ -52,7 +52,7 @@ def main():
         incremental_id = max_id + 1
 
     target_dir = os.path.join(hist_dir, str(incremental_id))
-    print("DEBUG Target dir " + target_dir)
+
     if os.path.exists(target_dir):
         shutil.rmtree(target_dir)
     os.makedirs(target_dir, exist_ok=True)
@@ -63,7 +63,6 @@ def main():
     for item in os.listdir('src'):
         s = os.path.join('src', item)
         d = os.path.join(target_dir, item)
-        print("DEBUG item " + s + " -> " + d)
 
         if os.path.isdir(s):
             shutil.copytree(s, d)
@@ -81,7 +80,6 @@ def main():
                         shutil.rmtree(d)
                     else:
                         os.remove(d)
-                print("DEBUG moving " + s + " -> " + d)
                 shutil.move(src_path, d)
 
     # Remove src
