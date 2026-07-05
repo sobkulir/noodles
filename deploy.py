@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import tarfile
 import os
 import sys
 import shutil
@@ -51,35 +52,40 @@ def main():
         incremental_id = max_id + 1
 
     target_dir = os.path.join(hist_dir, str(incremental_id))
-    
+    print("DEBUG Target dir " + target_dir)
     if os.path.exists(target_dir):
         shutil.rmtree(target_dir)
     os.makedirs(target_dir, exist_ok=True)
 
     # cp -r src/* hist/<incremental_ID>
-    if os.path.exists('src'):
-        for item in os.listdir('src'):
-            s = os.path.join('src', item)
-            d = os.path.join(target_dir, item)
-            if os.path.isdir(s):
-                shutil.copytree(s, d)
-            else:
-                shutil.copy2(s, d)
+    assert os.path.exists('src'), "src directory does not exist!"
 
-        # Move to top-level if --new-index is provided
-        if args.new_index:
-            for d in ['css', 'js', 'index.html']:
-                src_path = os.path.join('src', d)
-                if os.path.exists(src_path):
-                    if os.path.exists(d):
-                        if os.path.isdir(d):
-                            shutil.rmtree(d)
-                        else:
-                            os.remove(d)
-                    shutil.move(src_path, d)
+    for item in os.listdir('src'):
+        s = os.path.join('src', item)
+        d = os.path.join(target_dir, item)
+        print("DEBUG item " + s + " -> " + d)
 
-        # Remove src
-        shutil.rmtree('src', ignore_errors=True)
+        if os.path.isdir(s):
+            shutil.copytree(s, d)
+        else:
+            shutil.copy2(s, d)
+
+    # Move to top-level if --new-index is provided
+    if args.new_index:
+        for d in ['css', 'js', 'index.html']:
+            src_path = os.path.join('src', d)
+
+            if os.path.exists(src_path):
+                if os.path.exists(d):
+                    if os.path.isdir(d):
+                        shutil.rmtree(d)
+                    else:
+                        os.remove(d)
+                print("DEBUG moving " + s + " -> " + d)
+                shutil.move(src_path, d)
+
+    # Remove src
+    shutil.rmtree('src', ignore_errors=True)
 
     # Store commit ID in hist/<incremental_ID>/commit_id_<commit_ID>
     commit_file = os.path.join(target_dir, f"commit_id_{commit_id}")
