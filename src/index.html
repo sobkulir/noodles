@@ -118,8 +118,12 @@
             color: #333;
             pointer-events: none;
             user-select: none;
+            opacity: 0;
             transition: opacity 0.3s ease;
-            animation: fadeHint 1.5s ease-out;
+        }
+
+        #tweaks-hint.show-hint {
+            animation: fadeHint 1.5s ease-out forwards;
         }
 
         @media (max-width: 767px) {
@@ -138,9 +142,9 @@
 
     <script>
         let USER_MRIEZKA_SIZE = 32;
-        let USER_LINE_WIDTH_FACTOR = 0.38;
-        let USER_LINE_SQUIGLINESS = 0.7;
-        let USER_PASSES_PER_FRAME = 5;
+        let USER_LINE_WIDTH_FACTOR = 0.41;
+        let USER_LINE_SQUIGLINESS = 0.64;
+        let USER_PASSES_PER_FRAME = 2;
 
         // filled in setup()
         let MRIEZKA_SIZE = null;
@@ -409,20 +413,24 @@
         const LS_KEY = 'noodles.tweaks';
 
         function loadFromStorage() {
+            let panelOpen = false;
             try {
                 const raw = localStorage.getItem(LS_KEY);
-                if (!raw) return;
-                const saved = JSON.parse(raw);
-                if (saved.USER_MRIEZKA_SIZE != null) USER_MRIEZKA_SIZE = saved.USER_MRIEZKA_SIZE;
-                if (saved.USER_LINE_WIDTH_FACTOR != null) USER_LINE_WIDTH_FACTOR = saved.USER_LINE_WIDTH_FACTOR;
-                if (saved.USER_LINE_SQUIGLINESS != null) USER_LINE_SQUIGLINESS = saved.USER_LINE_SQUIGLINESS;
-                if (saved.USER_PASSES_PER_FRAME != null) USER_PASSES_PER_FRAME = saved.USER_PASSES_PER_FRAME;
-                // Restore panel open state
-                if (saved.panelOpen) {
-                    tweaksPanel.classList.add('open');
-                    tweaksHint.style.opacity = '0';
+                if (raw) {
+                    const saved = JSON.parse(raw);
+                    if (saved.USER_MRIEZKA_SIZE != null) USER_MRIEZKA_SIZE = saved.USER_MRIEZKA_SIZE;
+                    if (saved.USER_LINE_WIDTH_FACTOR != null) USER_LINE_WIDTH_FACTOR = saved.USER_LINE_WIDTH_FACTOR;
+                    if (saved.USER_LINE_SQUIGLINESS != null) USER_LINE_SQUIGLINESS = saved.USER_LINE_SQUIGLINESS;
+                    if (saved.USER_PASSES_PER_FRAME != null) USER_PASSES_PER_FRAME = saved.USER_PASSES_PER_FRAME;
+                    if (saved.panelOpen) panelOpen = true;
                 }
             } catch (e) { /* ignore corrupt data */ }
+
+            if (panelOpen) {
+                tweaksPanel.classList.add('open');
+            } else {
+                tweaksHint.classList.add('show-hint');
+            }
         }
 
         function saveToStorage() {
@@ -452,7 +460,8 @@
             if (window.innerWidth < 768) return;
             if (e.key === 'o' || e.key === 'O') {
                 const isOpen = tweaksPanel.classList.toggle('open');
-                tweaksHint.style.opacity = '0'
+                tweaksHint.classList.remove('show-hint');
+                tweaksHint.style.opacity = '0';
                 saveToStorage();
             } else if (e.key === 'r' || e.key === 'R') {
                 btnRedraw.click();
