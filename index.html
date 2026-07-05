@@ -68,11 +68,36 @@
             box-sizing: border-box;
         }
 
-        #tweaks-panel h2 {
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin: 0 0 20px 0;
-            padding-left: calc(280px / 4 - 9px);
-            /* 1/3 of panel width, offset for padding */
+            padding-left: 10px;
+            /* Tweak left position of title */
+            padding-right: 10px;
+            /* Tweak right position of X button */
+        }
+
+        #tweaks-panel h2 {
+            margin: 0;
             font-size: 20px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #555;
+            font-size: 28px;
+            font-weight: 500;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: #333;
         }
 
         #tweaks-panel hr {
@@ -369,7 +394,10 @@
     <!-- Tweaks panel -->
     <div id="tweaks-panel">
         <div id="tweaks-panel-inner">
-            <h2>Options</h2>
+            <div class="panel-header">
+                <h2>Options</h2>
+                <button id="btn-close" class="close-btn" title="Press O to toggle">&times;</button>
+            </div>
             <hr>
 
             <div class="tweak-row">
@@ -407,6 +435,7 @@
         const tweaksHint = document.getElementById('tweaks-hint');
         const btnRedraw = document.getElementById('btn-redraw');
         const btnPause = document.getElementById('btn-pause');
+        const btnClose = document.getElementById('btn-close');
         let isPaused = false;
 
         // --- localStorage persistence ---
@@ -450,8 +479,26 @@
 
         // Toggle panel with O / o (desktop only)
         // After the CSS width transition ends, resize the canvas.
-        tweaksPanel.addEventListener('transitionend', () => {
-            if (window.p5sketch) window.p5sketch.setup();
+        tweaksPanel.addEventListener('transitionend', (e) => {
+            if (e.target === tweaksPanel && e.propertyName === 'width') {
+                if (window.p5sketch) window.p5sketch.setup();
+            }
+        });
+
+        function toggleOptionsPanel(closeOnly = false) {
+            if (closeOnly) {
+                tweaksPanel.classList.remove('open');
+            } else {
+                tweaksPanel.classList.toggle('open');
+            }
+            tweaksHint.classList.remove('show-hint');
+            tweaksHint.style.opacity = '0';
+            saveToStorage();
+        }
+
+        btnClose.addEventListener('click', () => {
+            toggleOptionsPanel(true);
+            btnClose.blur();
         });
 
         document.addEventListener('keydown', (e) => {
@@ -459,10 +506,7 @@
             if ((e.target.tagName === 'INPUT' && e.target.type !== 'range') || e.target.tagName === 'TEXTAREA') return;
             if (window.innerWidth < 768) return;
             if (e.key === 'o' || e.key === 'O') {
-                const isOpen = tweaksPanel.classList.toggle('open');
-                tweaksHint.classList.remove('show-hint');
-                tweaksHint.style.opacity = '0';
-                saveToStorage();
+                toggleOptionsPanel();
             } else if (e.key === 'r' || e.key === 'R') {
                 btnRedraw.click();
             } else if (e.key === 'p' || e.key === 'P') {
